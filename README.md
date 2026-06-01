@@ -1,0 +1,1 @@
+Utilizes default openJDK-25 libraries for graphics rendering, physics simulation, and gameplay mechanics.
