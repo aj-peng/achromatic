@@ -23,22 +23,47 @@ public class TileManager {
         tile = new Tile[20];
         mapTileNum = new int[gp.maxWorldCol][gp.maxWorldRow];
 
-        getTileImage();
+        setTiles();
         loadMap();
     }
 
-    public void getTileImage() {
-        // 0-9 PLACEHOLDER
-        setup(0, "void", true);
-        setup(10, "stone", false);
-        setup(11, "path", false);
-        setup(12, "dirt", false);
-        setup(13, "wall", false);
-        setup(14, "tree", true);
-        setup(15, "water", true);
+    public void draw(Graphics2D g2) {
+        int worldCol = 0;
+        int worldRow = 0;
+
+        while (worldCol < gp.maxWorldCol && worldRow < gp.maxWorldRow) {
+            int index = mapTileNum[worldCol][worldRow];
+
+            int worldX = worldCol * gp.tileSize;
+            int worldY = worldRow * gp.tileSize;
+            int screenX = worldX - gp.player.worldX + gp.player.screenX;
+            int screenY = worldY - gp.player.worldY + gp.player.screenY;
+
+            if (gp.player.visible(worldX, worldY)) {
+                g2.drawImage(tile[index].image, screenX, screenY, null);
+            }
+            worldCol++;
+
+            if (worldCol == gp.maxWorldCol) {
+                worldCol = 0;
+                worldRow++;
+            }
+        }
     }
 
-    public void setup(int index, String imageName, boolean collision) {
+    public int getTileNum(int worldX,int worldY) {
+        int boundary = 4; // 4 Pixel Boundary
+        if (worldX < boundary || worldX > gp.maxWorldX - boundary ||
+                worldY < boundary || worldY > gp.maxWorldY - boundary) {
+            return 0;
+        }
+
+        int col = worldX / gp.tileSize;
+        int row = worldY / gp.tileSize;
+        return mapTileNum[col][row];
+    }
+
+    private void setup(int index, String imageName, boolean collision) {
         try {
             tile[index] = new Tile();
             tile[index].image = ImageIO.read(Objects.requireNonNull(
@@ -51,7 +76,18 @@ public class TileManager {
         }
     }
 
-    public void loadMap() {
+    private void setTiles() {
+        // 0-9 PLACEHOLDER
+        setup(0, "void", true);
+        setup(10, "stone", false);
+        setup(11, "path", false);
+        setup(12, "dirt", false);
+        setup(13, "wall", false);
+        setup(14, "tree", true);
+        setup(15, "water", true);
+    }
+
+    private void loadMap() {
         try {
             InputStream is = Objects.requireNonNull(getClass().getResourceAsStream("/maps/map01.txt"));
             BufferedReader br = new BufferedReader(new InputStreamReader(is));
@@ -79,41 +115,5 @@ public class TileManager {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
-
-    public void draw(Graphics2D g2) {
-        int worldCol = 0;
-        int worldRow = 0;
-
-        while (worldCol < gp.maxWorldCol && worldRow < gp.maxWorldRow) {
-            int index = mapTileNum[worldCol][worldRow];
-
-            int worldX = worldCol * gp.tileSize;
-            int worldY = worldRow * gp.tileSize;
-            int screenX = worldX - gp.player.worldX + gp.player.screenX;
-            int screenY = worldY - gp.player.worldY + gp.player.screenY;
-
-            if (gp.player.onScreen(worldX, worldY)) {
-                g2.drawImage(tile[index].image, screenX, screenY, null);
-            }
-            worldCol++;
-
-            if (worldCol == gp.maxWorldCol) {
-                worldCol = 0;
-                worldRow++;
-            }
-        }
-    }
-
-    public int getTileNum(int worldX,int worldY) {
-        int boundary = 4; // 4 Pixel Boundary
-        if (worldX < boundary || worldX > gp.maxWorldX - boundary ||
-                worldY < boundary || worldY > gp.maxWorldY - boundary) {
-            return 0;
-        }
-
-        int col = worldX / gp.tileSize;
-        int row = worldY / gp.tileSize;
-        return mapTileNum[col][row];
     }
 }

@@ -14,14 +14,22 @@ public class UserInterface {
     GamePanel gp;
     Graphics2D g2;
 
-    public Font maruMonica;
-    ArrayList<String> messages = new ArrayList<>();
-    ArrayList<Integer> counters = new ArrayList<>();
+    private final Font maruMonica;
+    private final Font textFont, boldFont, titleFont, subOneFont, subTwoFont;
 
-    public String dialogue = "";
     public int commandNum = 0;
+    private String dialogue = "";
 
+    ArrayList<Message> messages = new ArrayList<>();
     BufferedImage heart;
+
+    private static class Message {
+        int ticks = 180;
+        final String text;
+        public Message(String text) {
+            this.text = text;
+        }
+    }
 
     public UserInterface(GamePanel gp) {
         this.gp = gp;
@@ -36,6 +44,13 @@ public class UserInterface {
         // HUD
         SuperObject heart = new OBJ_Heart(gp);
         this.heart = heart.image;
+
+        // FONT
+        textFont = maruMonica.deriveFont(24F);
+        boldFont = maruMonica.deriveFont(Font.BOLD, 24F);
+        titleFont = maruMonica.deriveFont(Font.BOLD, 64F);
+        subOneFont = maruMonica.deriveFont(Font.BOLD, 48F);
+        subTwoFont = maruMonica.deriveFont(Font.BOLD, 32F);
     }
 
     public void draw(Graphics2D g2) {
@@ -44,20 +59,20 @@ public class UserInterface {
         g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
         g2.setColor(Color.WHITE);
 
-        if (gp.gameState == gp.titleState) {
-            drawTitleMenu();
-        }
-        else if (gp.gameState == gp.playState) {
-            drawMessage();
-            drawPlayerHealth();
-        }
-        else if (gp.gameState == gp.pauseState) {
-            drawPauseMenu();
-            drawPlayerHealth();
-        }
-        else if (gp.gameState == gp.dialogueState) {
-            drawDialogueMenu();
-            drawPlayerHealth();
+        switch (gp.gameState) {
+            case TITLE -> drawTitleMenu();
+            case PLAY -> {
+                drawMessage();
+                drawPlayerHealth();
+            }
+            case PAUSE -> {
+                drawPauseMenu();
+                drawPlayerHealth();
+            }
+            case DIALOGUE -> {
+                drawDialogueMenu();
+                drawPlayerHealth();
+            }
         }
     }
 
@@ -65,59 +80,47 @@ public class UserInterface {
         int x = gp.tileSize / 4;
         int y = gp.screenHeight - x;
 
-        g2.setFont(g2.getFont().deriveFont(Font.BOLD, 20F));
+        g2.setFont(textFont);
         g2.setColor(Color.WHITE);
         g2.drawString("Draw: " + delta, x, y);
     }
 
-    public void addMessage(String text) {
-        messages.add(text);
-        counters.add(0);
+    public void setDialogue(String text) {
+        dialogue = text;
     }
 
-    public void removeMessage(int index) {
+    public void addMessage(String text) {
+        messages.add(new Message(text));
+    }
+
+    private void removeMessage(int index) {
         messages.remove(index);
-        counters.remove(index);
     }
 
     private void drawMessage() {
-        int messageY = gp.tileSize * 5;
         int messageX = gp.tileSize / 4;
+        int messageY = gp.tileSize * 5;
 
-        g2.setFont(g2.getFont().deriveFont(Font.BOLD, 20F));
+        g2.setFont(textFont);
         g2.setColor(Color.white);
 
-        for (int i = 0; i < messages.size(); i++) {
-            if (messages.get(i) != null) {
-                g2.drawString(messages.get(i), messageX, messageY);
-                messageY += gp.tileSize / 2;
-
-                int count = counters.get(i) + 1;
-                counters.set(i, count);
-                if (counters.get(i) > 180) {
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            Message message = messages.get(i);
+            if (message != null) {
+                if (--message.ticks < 1) {
                     removeMessage(i);
+                    continue;
                 }
+
+                g2.drawString(message.text, messageX, messageY);
+                messageY += gp.tileSize / 2;
             }
         }
     }
 
-    private void drawPlayerHealth() {
-        int x = gp.tileSize / 4;
-        int y = gp.tileSize / 2;
-        g2.drawImage(heart, x, y, null);
-
-        g2.setColor(Color.WHITE);
-        g2.setFont(g2.getFont().deriveFont(Font.BOLD, 22F));
-        FontMetrics metrics = g2.getFontMetrics();
-        g2.drawString(gp.player.health + "/" + gp.player.maxHealth,
-                x + (gp.tileSize * 2 / 3),
-                y + (heart.getHeight() - metrics.getHeight()) / 2 + metrics.getAscent()
-        );
-    }
-
     private void drawTitleMenu() {
         g2.setColor(Color.YELLOW);
-        g2.setFont(g2.getFont().deriveFont(Font.BOLD, 64F));
+        g2.setFont(titleFont);
 
         String text = "ACHROMATIC";
         int x = getCenterTextX(text);
@@ -125,7 +128,7 @@ public class UserInterface {
         g2.drawString(text, x, y);
 
         g2.setColor(Color.white);
-        g2.setFont(g2.getFont().deriveFont(Font.BOLD, 48F));
+        g2.setFont(subOneFont);
 
         String[] entries = {"PLAY", "NEW GAME", "EXIT"};
         for(int i = 0; i < entries.length; i++) {
@@ -144,7 +147,7 @@ public class UserInterface {
         g2.setColor(new Color(0, 0, 0, 150));
         g2.fillRect(0, 0, gp.screenWidth, gp.screenHeight);
 
-        g2.setFont(g2.getFont().deriveFont(Font.BOLD, 48F));
+        g2.setFont(subOneFont);
         g2.setColor(Color.YELLOW);
 
         int x = getCenterTextX(text);
@@ -152,7 +155,7 @@ public class UserInterface {
         g2.drawString(text, x, y);
 
         g2.setColor(Color.white);
-        g2.setFont(g2.getFont().deriveFont(Font.BOLD, 32F));
+        g2.setFont(subTwoFont);
 
         String[] entries = {"RESUME", "EXIT"};
         for(int i = 0; i < entries.length; i++) {
@@ -177,11 +180,25 @@ public class UserInterface {
         x += gp.tileSize / 4 + padding;
         y += gp.tileSize / 2 + padding;
 
-        g2.setFont(g2.getFont().deriveFont(24F));
+        g2.setFont(textFont);
         for (String line : dialogue.split("\n")) {
             g2.drawString(line, x, y);
             y += gp.tileSize / 2 + padding;
         }
+    }
+
+    private void drawPlayerHealth() {
+        int x = gp.tileSize / 4;
+        int y = gp.tileSize / 4;
+        g2.drawImage(heart, x, y, null);
+
+        g2.setColor(Color.WHITE);
+        g2.setFont(boldFont);
+        FontMetrics metrics = g2.getFontMetrics();
+        g2.drawString(gp.player.health + "/" + gp.player.maxHealth,
+                x + (gp.tileSize * 2 / 3),
+                y + (heart.getHeight() - metrics.getHeight()) / 2 + metrics.getAscent()
+        );
     }
 
     private void drawSubWindow(int x, int y, int width, int height) {

@@ -1,5 +1,7 @@
 package main;
 
+import entity.Entity;
+
 import java.awt.event.KeyEvent;
 import java.awt.event.KeyListener;
 import java.util.ArrayList;
@@ -10,16 +12,16 @@ import java.util.Set;
 public class InputHandler implements KeyListener {
     GamePanel gp;
 
-    public enum Direction { NONE, UP, DOWN, LEFT, RIGHT }
-
     private final List<Runnable> space = new ArrayList<>();
     private final List<Runnable> wasd = new ArrayList<>();
     private final Set<Integer> debounce = new HashSet<>();
-    public Direction direction = Direction.NONE;
-    public boolean moving = false;
-    public boolean debug = false;
 
-    public InputHandler(GamePanel gp) { this.gp = gp; }
+    public Entity.Direction direction;
+    public boolean moving = false;
+
+    public InputHandler(GamePanel gp) {
+        this.gp = gp;
+    }
 
     @Override
     public void keyPressed(KeyEvent e) {
@@ -27,20 +29,15 @@ public class InputHandler implements KeyListener {
         if (debounce.contains(code)) return;
         debounce.add(code);
 
-        if (gp.gameState == gp.titleState) {
-            titleState(code);
+        switch (gp.gameState) {
+            case TITLE -> titleState(code);
+            case PLAY  -> playState(code);
+            case PAUSE -> pauseState(code);
+            case DIALOGUE -> dialogueState(code);
         }
-        else if (gp.gameState == gp.playState) {
-            playState(code);
-        }
-        else if (gp.gameState == gp.pauseState) {
-            pauseState(code);
-        }
-        else if (gp.gameState == gp.dialogueState) {
-            dialogueState(code);
-        }
+
         if (code == KeyEvent.VK_BACK_QUOTE) {
-            debug = !debug;
+            gp.debug = !gp.debug;
         }
     }
 
@@ -52,119 +49,117 @@ public class InputHandler implements KeyListener {
         int code = e.getKeyCode();
         debounce.remove(code);
 
-        if ((code == KeyEvent.VK_W && direction == Direction.UP) ||
-                (code == KeyEvent.VK_S && direction == Direction.DOWN) ||
-                (code == KeyEvent.VK_A && direction == Direction.LEFT) ||
-                (code == KeyEvent.VK_D && direction == Direction.RIGHT)) {
-            direction = Direction.NONE;
+        if ((code == KeyEvent.VK_W && direction == Entity.Direction.UP) ||
+                (code == KeyEvent.VK_S && direction == Entity.Direction.DOWN) ||
+                (code == KeyEvent.VK_A && direction == Entity.Direction.LEFT) ||
+                (code == KeyEvent.VK_D && direction == Entity.Direction.RIGHT)) {
+            direction = Entity.Direction.NONE;
             moving = false;
         }
     }
 
-    public void titleState(int code) {
-        if (code == KeyEvent.VK_W) {
-            gp.ui.commandNum = Math.clamp(gp.ui.commandNum - 1, 0 , 2);
-            gp.playSound(1);
-        }
-        else if (code == KeyEvent.VK_S) {
-            gp.ui.commandNum = Math.clamp(gp.ui.commandNum + 1, 0 , 2);
-            gp.playSound(1);
-        }
-        else if (code == KeyEvent.VK_SPACE) {
-            if (gp.ui.commandNum == 0) {
-                gp.gameState = gp.playState;
-                gp.playMusic(0);
-                gp.playSound(1);
-            }
-            else if (gp.ui.commandNum == 1) {
-                System.out.println("NEW GAME");
-            }
-            else if (gp.ui.commandNum == 2) {
-                System.exit(0);
-            }
-        }
-    }
-
-    public void playState(int code) {
-        // Handle movement keys
-        switch (code) {
-            case KeyEvent.VK_W:
-                direction = Direction.UP;
-                moving = true;
-                movement();
-                break;
-            case KeyEvent.VK_S:
-                direction = Direction.DOWN;
-                moving = true;
-                movement();
-                break;
-            case KeyEvent.VK_A:
-                direction = Direction.LEFT;
-                moving = true;
-                movement();
-                break;
-            case KeyEvent.VK_D:
-                direction = Direction.RIGHT;
-                moving = true;
-                movement();
-                break;
-            case KeyEvent.VK_SPACE:
-                interact();
-                break;
-            case KeyEvent.VK_ESCAPE:
-                gp.ui.commandNum = 0;
-                gp.gameState = gp.pauseState;
-                break;
-        }
-    }
-
-    public void pauseState(int code) {
-        if (code == KeyEvent.VK_ESCAPE) {
-            gp.gameState = gp.playState;
-        }
-        else if (code == KeyEvent.VK_W) {
-            gp.ui.commandNum = Math.clamp(gp.ui.commandNum - 1, 0 , 1);
-            gp.playSound(1);
-        }
-        else if (code == KeyEvent.VK_S) {
-            gp.ui.commandNum = Math.clamp(gp.ui.commandNum + 1, 0 , 1);
-            gp.playSound(1);
-        }
-        else if (code == KeyEvent.VK_SPACE) {
-            if (gp.ui.commandNum == 0) {
-                gp.gameState = gp.playState;
-            }
-            else if (gp.ui.commandNum == 1) {
-                System.exit(0);
-            }
-        }
-    }
-
-    public void dialogueState(int code) {
-        if (code == KeyEvent.VK_SPACE) {
-            gp.gameState = gp.playState;
-        }
-    }
-
-    public void connectInteract(Runnable listener) {
-        space.add(listener);
-    }
-
-    public void connectMovement(Runnable listener) {
+    public void bindWASD(Runnable listener) {
         wasd.add(listener);
     }
 
-    private void interact() {
-        for (Runnable listener : space) {
-            listener.run();
+    public void bindSpace(Runnable listener) {
+        space.add(listener);
+    }
+
+    private void titleState(int code) {
+        switch (code) {
+            case KeyEvent.VK_W -> {
+                gp.ui.commandNum = Math.clamp(gp.ui.commandNum - 1, 0 , 2);
+                gp.playSound(1);
+            }
+            case KeyEvent.VK_S -> {
+                gp.ui.commandNum = Math.clamp(gp.ui.commandNum + 1, 0 , 2);
+                gp.playSound(1);
+            }
+            case KeyEvent.VK_SPACE -> {
+                if (gp.ui.commandNum == 0) {
+                    gp.gameState = GamePanel.GameState.PLAY;
+                    gp.playMusic(0);
+                    gp.playSound(1);
+                } else if (gp.ui.commandNum == 1) {
+                    System.out.println("NEW GAME");
+                } else if (gp.ui.commandNum == 2) {
+                    System.exit(0);
+                }
+            }
         }
     }
 
-    private void movement() {
+    private void playState(int code) {
+        // Handle movement keys
+        switch (code) {
+            case KeyEvent.VK_W -> {
+                direction = Entity.Direction.UP;
+                moving = true;
+                onWASD();
+            }
+            case KeyEvent.VK_S ->{
+                direction = Entity.Direction.DOWN;
+                moving = true;
+                onWASD();
+            }
+            case KeyEvent.VK_A -> {
+                direction = Entity.Direction.LEFT;
+                moving = true;
+                onWASD();
+            }
+            case KeyEvent.VK_D -> {
+                direction = Entity.Direction.RIGHT;
+                moving = true;
+                onWASD();
+            }
+            case KeyEvent.VK_SPACE -> onSpace();
+            case KeyEvent.VK_ESCAPE -> {
+                gp.ui.commandNum = 0;
+                gp.gameState = GamePanel.GameState.PAUSE;
+            }
+        }
+    }
+
+    private void pauseState(int code) {
+        switch (code) {
+            case KeyEvent.VK_W -> {
+                gp.ui.commandNum = Math.clamp(gp.ui.commandNum - 1, 0 , 1);
+                gp.playSound(1);
+            }
+            case KeyEvent.VK_S -> {
+                gp.ui.commandNum = Math.clamp(gp.ui.commandNum + 1, 0 , 1);
+                gp.playSound(1);
+            }
+            case KeyEvent.VK_SPACE -> {
+                if (gp.ui.commandNum == 0) {
+                    gp.gameState = GamePanel.GameState.PLAY;
+                }
+                else if (gp.ui.commandNum == 1) {
+                    System.exit(0);
+                }
+            }
+            case KeyEvent.VK_ESCAPE -> gp.gameState = GamePanel.GameState.PLAY;
+        }
+    }
+
+    private void dialogueState(int code) {
+        if (code == KeyEvent.VK_SPACE) {
+            onSpace();
+        }
+    }
+
+    private void onWASD() {
         if (moving) {
             for (Runnable listener : wasd) {
                 listener.run();
             }
+        }
+    }
+
+    private void onSpace() {
+        for (Runnable listener : space) {
+            listener.run();
         }
     }
 }

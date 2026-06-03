@@ -1,8 +1,10 @@
 package main;
 
+import entity.Entity;
 import entity.NPC_Blue;
 import object.OBJ_Dice;
 import object.OBJ_Door;
+import object.SuperObject;
 
 public class Setter {
     GamePanel gp;
@@ -11,19 +13,26 @@ public class Setter {
         this.gp = gp;
     }
 
-    public void setObject() {
-        gp.objs[0] = new OBJ_Dice(gp);
-        gp.objs[0].worldX = gp.tileSize * 2;
-        gp.objs[0].worldY = gp.tileSize * 2;
-
-        gp.objs[1] = new OBJ_Door(gp);
-        gp.objs[1].worldX = gp.tileSize * 2;
-        gp.objs[1].worldY = gp.tileSize * 4;
+    public void setNPC() {
+        addNPC(0,12,2,new NPC_Blue(gp));
     }
 
-    public void setNPC() {
-        gp.npcs[0] = new NPC_Blue(gp);
-        gp.npcs[0].worldX = gp.tileSize * 12;
-        gp.npcs[0].worldY = gp.tileSize * 2;
+    public void setObject() {
+        addObject(0,2,2,new OBJ_Door(gp));
+        addObject(1,4,4,new OBJ_Dice(gp));
+    }
+
+    private void addNPC(int index, int col, int row, Entity npc) {
+        if (gp.npcs[index] != null) return;
+        npc.worldX = gp.tileSize * col;
+        npc.worldY = gp.tileSize * row;
+        gp.npcs[index] = npc;
+    }
+
+    private void addObject(int index, int col, int row, SuperObject object) {
+        if (gp.objs[index] != null) return;
+        object.worldX = gp.tileSize * col;
+        object.worldY = gp.tileSize * row;
+        gp.objs[index] = object;
     }
 }

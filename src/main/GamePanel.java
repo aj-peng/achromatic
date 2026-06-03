@@ -26,8 +26,6 @@ public class GamePanel extends JPanel implements Runnable {
     public final int maxWorldX = maxWorldCol * tileSize;
     public final int maxWorldY = maxWorldRow * tileSize;
 
-    final int tick = 60;
-
     // SYSTEM
     TileManager tileManager = new TileManager(this);
     InputHandler input = new InputHandler(this);
@@ -40,16 +38,15 @@ public class GamePanel extends JPanel implements Runnable {
     Thread gameThread;
 
     // GAMEPLAY
+    private final ArrayList<Sprite> render = new ArrayList<>(16);
     public Player player = new Player(this, input);
-    public SuperObject[] objs = new SuperObject[10];
-    public Entity[] npcs = new Entity[10];
+    public SuperObject[] objs = new SuperObject[8];
+    public Entity[] npcs = new Entity[8];
 
-    // GAMESTATE
-    public int gameState;
-    public final int titleState = 0;
-    public final int playState = 1;
-    public final int pauseState = 2;
-    public final int dialogueState = 3;
+    // GAME STATE
+    public boolean debug = false;
+    public enum GameState { TITLE, PLAY, PAUSE, DIALOGUE }
+    public GameState gameState = GameState.TITLE;
     // public final int optionsState = 5;
 
     public GamePanel() {
@@ -63,7 +60,6 @@ public class GamePanel extends JPanel implements Runnable {
     public void setupGame() {
         setter.setObject();
         setter.setNPC();
-        gameState = titleState;
     }
 
     public void startGameThread() {
@@ -73,10 +69,12 @@ public class GamePanel extends JPanel implements Runnable {
 
     @Override
     public void run() {
+        int tick = 60;
         double drawInterval = 1_000_000_000D / tick;
-        double delta = 0;
+
         long lastTime = System.nanoTime();
         long currentTime;
+        double delta = 0;
 
         while(gameThread != null) {
             currentTime = System.nanoTime();
@@ -92,7 +90,7 @@ public class GamePanel extends JPanel implements Runnable {
     }
 
     public void update() {
-        if (gameState == playState) {
+        if (gameState == GameState.PLAY) {
             player.update();
 
             for (Entity npc : npcs) {
@@ -108,43 +106,38 @@ public class GamePanel extends JPanel implements Runnable {
         Graphics2D g2 = (Graphics2D) g;
 
         // DEBUG
-        long start;
-        start = System.nanoTime();
+        long start = System.nanoTime();
 
         // TITLE
-        if (gameState == titleState) {
+        if (gameState == GameState.TITLE) {
             ui.draw(g2);
         }
-        // GAME
         else {
             // TILES
             tileManager.draw(g2);
 
-            // OBJECTS
-            for (SuperObject obj : objs) {
-                if (obj != null) {
-                    obj.draw(g2, this);
-                }
-            }
-
-            // Entities
-            ArrayList<Entity> entities = new ArrayList<>();
-            entities.add(player);
+            // OBJECTS AND ENTITY
+            render.clear();
+            render.add(player);
             for (Entity npc : npcs) {
                 if (npc != null) {
-                    entities.add(npc);
+                    render.add(npc);
+                }
+            }
+            for (SuperObject obj : objs) {
+                if (obj != null) {
+                    render.add(obj);
                 }
             }
 
-            entities.sort((e1, e2) -> (Integer.compare(e1.worldY, e2.worldY)));
-            for (Entity entity : entities) {
-                entity.draw(g2);
+            render.sort((s1, s2) -> (Integer.compare(s1.getSpriteOrder(), s2.getSpriteOrder())));
+            for (Sprite sprite : render) {
+                sprite.draw(g2);
             }
 
             // UI
             ui.draw(g2);
-
-            if (input.debug) {
+            if (debug) {
                 long elapsed = System.nanoTime() - start;
                 ui.drawDelta(elapsed);
             }

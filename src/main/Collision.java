@@ -17,31 +17,63 @@ public class Collision {
         int tileNum1, tileNum2;
 
         switch (entity.direction) {
-            case "up":
+            case Entity.Direction.UP -> {
                 entityTopWorldY = entityTopWorldY - entity.speed;
                 tileNum1 = gp.tileManager.getTileNum(entityLeftWorldX, entityTopWorldY);
                 tileNum2 = gp.tileManager.getTileNum(entityRightWorldX, entityTopWorldY);
-                if (getTileCollisions(tileNum1, tileNum2)) { entity.collision = true; }
-                break;
-            case "down":
+                if (getTileCollisions(tileNum1, tileNum2)) entity.collision = true;
+            }
+            case Entity.Direction.DOWN -> {
                 entityBottomWorldY = entityBottomWorldY + entity.speed;
                 tileNum1 = gp.tileManager.getTileNum(entityLeftWorldX, entityBottomWorldY);
                 tileNum2 = gp.tileManager.getTileNum(entityRightWorldX, entityBottomWorldY);
-                if (getTileCollisions(tileNum1, tileNum2)) { entity.collision = true; }
-                break;
-            case "left":
+                if (getTileCollisions(tileNum1, tileNum2)) entity.collision = true;
+            }
+            case Entity.Direction.LEFT -> {
                 entityLeftWorldX = entityLeftWorldX - entity.speed;
                 tileNum1 = gp.tileManager.getTileNum(entityLeftWorldX, entityTopWorldY);
                 tileNum2 = gp.tileManager.getTileNum(entityLeftWorldX, entityBottomWorldY);
-                if (getTileCollisions(tileNum1, tileNum2)) { entity.collision = true; }
-                break;
-            case "right":
+                if (getTileCollisions(tileNum1, tileNum2)) entity.collision = true;
+            }
+            case Entity.Direction.RIGHT -> {
                 entityRightWorldX = entityRightWorldX + entity.speed;
                 tileNum1 = gp.tileManager.getTileNum(entityRightWorldX, entityTopWorldY);
                 tileNum2 = gp.tileManager.getTileNum(entityRightWorldX, entityBottomWorldY);
-                if (getTileCollisions(tileNum1, tileNum2)) { entity.collision = true; }
-                break;
+                if (getTileCollisions(tileNum1, tileNum2)) entity.collision = true;
+            }
         }
+    }
+
+    public void checkPlayer(Entity entity) {
+        convertWorldHitbox(entity);
+        convertWorldHitbox(gp.player);
+        updateWorldHitbox(entity);
+
+        if (entity.hitbox.intersects(gp.player.hitbox)) {
+            entity.collision = true;
+        }
+
+        resetHitbox(entity);
+        resetHitbox(gp.player);
+    }
+
+    public int checkEntity(Entity entity, Entity[] targets) {
+        int index = 999;
+        convertWorldHitbox(entity);
+        updateWorldHitbox(entity);
+
+        for (int i = 0; i < targets.length; i++) {
+            if (targets[i] != null) {
+                convertWorldHitbox(targets[i]);
+                if (entity.hitbox.intersects(targets[i].hitbox)) {
+                    index = i;
+                }
+                resetHitbox(targets[i]);
+            }
+        }
+
+        resetHitbox(entity);
+        return index;
     }
 
     public int checkObject(Entity entity, boolean player) {
@@ -70,56 +102,23 @@ public class Collision {
         return index;
     }
 
-    // NPC OR MONSTER
-    public int checkEntity(Entity entity, Entity[] targets) {
-        int index = 999;
-        convertWorldHitbox(entity);
-        updateWorldHitbox(entity);
-
-        for (int i = 0; i < targets.length; i++) {
-            if (targets[i] != null) {
-                convertWorldHitbox(targets[i]);
-                if (entity.hitbox.intersects(targets[i].hitbox)) {
-                    index = i;
-                }
-                resetHitbox(targets[i]);
-            }
-        }
-
-        resetHitbox(entity);
-        return index;
+    private void resetHitbox(Entity entity) {
+        entity.hitbox.x = entity.hitboxDefaultX;
+        entity.hitbox.y = entity.hitboxDefaultY;
     }
 
-    public void checkPlayer(Entity entity) {
-        convertWorldHitbox(entity);
-        convertWorldHitbox(gp.player);
-        updateWorldHitbox(entity);
-
-        if (entity.hitbox.intersects(gp.player.hitbox)) {
-            entity.collision = true;
+    private void updateWorldHitbox(Entity entity) {
+        switch (entity.direction) {
+            case Entity.Direction.UP -> entity.hitbox.y -= entity.speed;
+            case Entity.Direction.DOWN -> entity.hitbox.y += entity.speed;
+            case Entity.Direction.LEFT -> entity.hitbox.x -= entity.speed;
+            case Entity.Direction.RIGHT -> entity.hitbox.x += entity.speed;
         }
-
-        resetHitbox(entity);
-        resetHitbox(gp.player);
     }
 
     private void convertWorldHitbox(Entity entity) {
         entity.hitbox.x = entity.worldX + entity.hitbox.x;
         entity.hitbox.y = entity.worldY + entity.hitbox.y;
-    }
-
-    private void updateWorldHitbox(Entity entity) {
-        switch (entity.direction) {
-            case "up" -> entity.hitbox.y -= entity.speed;
-            case "down" -> entity.hitbox.y += entity.speed;
-            case "left" -> entity.hitbox.x -= entity.speed;
-            case "right" -> entity.hitbox.x += entity.speed;
-        }
-    }
-
-    private void resetHitbox(Entity entity) {
-        entity.hitbox.x = entity.hitboxDefaultX;
-        entity.hitbox.y = entity.hitboxDefaultY;
     }
 
     private boolean getTileCollisions (int tileNum1, int tileNum2) {

@@ -18,32 +18,126 @@ public class Player extends Entity {
         screenX = (gp.screenWidth - gp.tileSize) / 2;
         screenY = (gp.screenHeight - gp.tileSize) / 2;
 
-        hitbox = new Rectangle();
-        hitbox.x = 12;
-        hitbox.y = 16;
-        hitbox.width = 24;
-        hitbox.height = 32;
+        hitbox = new Rectangle(12,16,24,32);
         hitboxDefaultX = hitbox.x;
         hitboxDefaultY = hitbox.y;
 
-        setDefaultValues();
-        getPlayerImages();
-        input.connectInteract(this::interact);
-        input.connectMovement(this::movement);
+        setValues();
+        setImages();
+        input.bindWASD(this::movement);
+        input.bindSpace(this::interact);
     }
 
-    public void setDefaultValues() {
+    public void update() {
+        if (input.moving) {
+            idle = false;
+
+            // CHECK COLLISION
+            collision = false;
+            gp.collision.checkTile(this);
+
+            // OBJECT COLLISION
+            int objIndex = gp.collision.checkObject(this, true);
+            pickup(objIndex);
+
+            if (!collision) {
+                switch (direction) {
+                    case Direction.UP -> worldY -= speed;
+                    case Direction.DOWN -> worldY += speed;
+                    case Direction.LEFT -> worldX -= speed;
+                    case Direction.RIGHT -> worldX += speed;
+                }
+
+                spriteCounter++;
+                if (spriteCounter > interval) {
+                    spriteNum = (spriteNum >= 4) ? 1 : spriteNum + 1;
+                    spriteCounter = 0;
+                }
+            }
+        }
+        else if (!idle) {
+            idle = true;
+        }
+    }
+
+    public void draw(Graphics2D g2) {
+        BufferedImage image = getImage();
+        g2.drawImage(image, screenX, screenY, null);
+        if (gp.debug) {
+            g2.setColor(Color.RED);
+            g2.drawRect(screenX + hitbox.x, screenY + hitbox.y, hitbox.width, hitbox.height);
+        }
+    }
+
+    public void speak(int index) {
+        if (index == 999 || gp.npcs[index] == null) {
+            gp.gameState = GamePanel.GameState.PLAY;
+            return;
+        }
+
+        switch (gp.gameState) {
+            case PLAY -> {
+                gp.gameState = GamePanel.GameState.DIALOGUE;
+                gp.npcs[index].speak();
+                gp.playSound(1);
+                idle = true;
+            }
+            case DIALOGUE -> {
+                gp.npcs[index].speak();
+                gp.playSound(1);
+            }
+        }
+    }
+
+    public boolean visible(int x, int y) {
+        return x + gp.tileSize > worldX - screenX && x - gp.tileSize < worldX + screenX &&
+                y + gp.tileSize > worldY - screenY && y - gp.tileSize < worldY + screenY;
+    }
+
+    private void movement() {
+        direction = input.direction;
+    }
+
+    private void interact() {
+        // NPC INTERACTION
+        int npcIndex = gp.collision.checkEntity(this, gp.npcs);
+        if (npcIndex != 999 && gp.npcs[npcIndex] != null) {
+            speak(npcIndex);
+        }
+        else {
+            gp.event.checkEvent();
+        }
+    }
+
+    private void pickup(int index) {
+        if (index != 999 && gp.objs[index] != null) {
+            switch (gp.objs[index].name) {
+                case "Dice"-> {
+                    gp.playSound(2);
+                    gp.objs[index] = null;
+                    gp.event.gamble();
+                }
+                case "Door" -> {
+                    gp.playSound(2);
+                    gp.objs[index] = null;
+                    gp.ui.addMessage("-1 Door");
+                }
+            }
+        }
+    }
+
+    private void setValues() {
         worldX = gp.tileSize * 7;
         worldY = gp.tileSize * 2;
         speed = 4;
-        direction = "down";
+        direction = Direction.DOWN;
 
         // PLAYER STATUS
         maxHealth = 5;
         health = maxHealth;
     }
 
-    public void getPlayerImages() {
+    private void setImages() {
         up1 = setup("/player/grey_up_1", gp.tileSize, gp.tileSize);
         up2 = setup("/player/grey_up_2", gp.tileSize, gp.tileSize);
         up3 = setup("/player/grey_up_3", gp.tileSize, gp.tileSize);
@@ -59,114 +153,5 @@ public class Player extends Entity {
         right1 = setup("/player/grey_right_1", gp.tileSize, gp.tileSize);
         right2 = setup("/player/grey_right_2", gp.tileSize, gp.tileSize);
         right3 = setup("/player/grey_right_3", gp.tileSize, gp.tileSize);
-    }
-
-    public void update() {
-        if (input.moving) {
-            idle = false;
-
-            // CHECK COLLISION
-            collision = false;
-            gp.collision.checkTile(this);
-
-            // OBJECT COLLISION
-            int objIndex = gp.collision.checkObject(this, true);
-            pickUpObject(objIndex);
-
-            if (!collision) {
-                switch (direction) {
-                    case "up" -> worldY -= speed;
-                    case "down" -> worldY += speed;
-                    case "left" -> worldX -= speed;
-                    case "right" -> worldX += speed;
-                }
-            }
-
-            spriteCounter++;
-            if (spriteCounter > interval) {
-                spriteNum = (spriteNum >= 4) ? 1 : spriteNum + 1;
-                spriteCounter = 0;
-            }
-        }
-        else if (!idle) {
-            idle = true;
-        }
-    }
-
-    public void pickUpObject(int index) {
-        if (index != 999) {
-            String objName = gp.objs[index].name;
-
-            switch (objName) {
-                case "Dice":
-                    gp.playSound(2);
-                    gp.objs[index] = null;
-                    gp.ui.addMessage("+1 Dice");
-                    break;
-                case "Door":
-                    gp.playSound(2);
-                    gp.objs[index] = null;
-                    gp.ui.addMessage("-1 Door");
-                    break;
-            }
-        }
-    }
-
-    public void interactNPC(int index) {
-        if (index != 999 && gp.npcs[index] != null) {
-            gp.gameState = gp.dialogueState;
-            gp.npcs[index].speak();
-            gp.playSound(1);
-            idle = true;
-        }
-    }
-    
-    public void draw(Graphics2D g2) {
-        BufferedImage image = switch (direction) {
-            case "up" -> getFrame(up2, up1, up2, up3);
-            case "down" -> getFrame(down2, down1, down2, down3);
-            case "left" -> getFrame(left1, left1, left2, left3);
-            case "right" -> getFrame(right1, right1, right2, right3);
-            default -> null;
-        };
-
-        g2.drawImage(image, screenX, screenY, null);
-        if (input.debug) {
-            g2.setColor(Color.RED);
-            g2.drawRect(screenX + hitbox.x, screenY + hitbox.y, hitbox.width, hitbox.height);
-        }
-    }
-
-    public boolean onScreen(int x, int y) {
-        return x + gp.tileSize > worldX - screenX && x - gp.tileSize < worldX + screenX &&
-                y + gp.tileSize > worldY - screenY && y - gp.tileSize < worldY + screenY;
-    }
-
-    private void interact() {
-        // NPC INTERACTION
-        int npcIndex = gp.collision.checkEntity(this, gp.npcs);
-        interactNPC(npcIndex);
-
-        // EVENT INTERACTION
-        gp.event.checkEvent();
-    }
-
-    private void movement() {
-        switch (input.direction) {
-            case UP -> direction = "up";
-            case DOWN -> direction = "down";
-            case LEFT -> direction = "left";
-            case RIGHT -> direction = "right";
-            case NONE -> {}
-        }
-    }
-
-    private BufferedImage getFrame(BufferedImage frame0, BufferedImage frame1, BufferedImage frame2, BufferedImage frame3) {
-        if (idle || collision) return frame0;
-        return switch (spriteNum) {
-            case 1 -> frame1;
-            case 3 -> frame3;
-            default -> frame2;
-        };
     }
 }
